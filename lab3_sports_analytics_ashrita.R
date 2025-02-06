@@ -285,4 +285,4 @@ final_df <- data.frame(scores, years, teams_2)
 library(ggplot2)
 
 ggplot(final_df, aes(x = years, y = scores, group = teams_2, color = teams_2)) + geom_point() +
-  geom_line()
+  geom_line() + facet_wrap(~teams_2) + theme(legend.position = "none")
