@@ -1,0 +1,133 @@
+---
+title: "sports analytics lab 3 draft?"
+output: pdf_document
+date: "2025-01-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Step 1
+game_data=data#reading in the data
+teams=unique(c(game_data$Visiting_Team,game_data$Home_Team))#getting all of the team codes
+tindex=setNames(1:30,teams)#creating an index for each team
+tpmatrix=matrix(0,nrow=30,ncol=30,dimnames=list(teams,teams))#initializing the matrix
+for(i in 1:25193){#looping through each row
+  visiting=tindex[game_data$Visiting_Team[i]]#getting the visiting team
+  home=tindex[game_data$Home_Team[i]]#getting the home team
+  vs=game_data$Visiting_Score[i]#getting the visiting team's score
+  hs=game_data$Home_Score[i]#getting the home team's score
+  if (vs<hs){#home team wins
+    tpmatrix[visiting,home]=tpmatrix[visiting,home]+1#adding 1 to the entry for this home team beating this visiting team
+  }else if(hs<vs){#visiting team wins
+    tpmatrix[home,visiting]=tpmatrix[home,visiting]+1#adding 1 to the entry for this visiting team beating this home team
+  }#closing the if else
+}#closing the loop
+
+mtmatrix=tpmatrix/rowSums(tpmatrix)#normalizing the rows
+mtmatrix[is.nan(mtmatrix)]=0#making NA's 0s
+mtmatrix#printing the matrix
+```
+
+```{r}
+#Step 2
+b=rep(1/30,30)#encoding the probability distribution in a vector
+for(i in 1:10000){#looping through the iterations
+  b=b%*%mtmatrix#multiplying the probability distribution vector by the matrix
+}#closing the loop
+rankings=setNames(as.numeric(b),rownames(mtmatrix))#getting the probabilities
+rankings=sort(rankings,decreasing=T)#sorting the probabilities
+rankings=data.frame(Rank=1:30,Team=names(rankings),Probability=rankings)#assigning ranks 1 through 30
+rankings#printing the rankings
+```
+
+```{r}
+#Rank Team Probability
+#1    LAN  0.03948072
+#2    NYA  0.03830918
+#3    HOU  0.03721329
+#4    TBA  0.03660620
+#5    BOS  0.03584793
+#6    SLN  0.03536689
+#7    TOR  0.03532205
+#8    MIL  0.03498321
+#9    CHN  0.03489770
+#10   CLE  0.03454301
+#11   ATL  0.03445328
+#12   SFN  0.03400499
+#13   SEA  0.03394242
+#14   NYN  0.03341753
+#15   BAL  0.03316139
+#16   WAS  0.03267800
+#17   PHI  0.03243858
+#18   SDN  0.03235099
+#19   ANA  0.03219857
+#20   ARI  0.03200487
+#21   OAK  0.03197763
+#22   MIN  0.03187847
+#23   TEX  0.03184672
+#24   PIT  0.03138499
+#25   CIN  0.03064543
+#26   COL  0.03045380
+#27   KCA  0.02999425
+#28   MIA  0.02969201
+#29   DET  0.02959835
+#30   CHA  0.02930756
+```
+
+```{r}
+#I am finding the rankings by season. 
+```
+
+```{r}
+#Rankings By Year
+years=unique(game_data$season)#finding the unique years
+years#printing the unique years
+yearly_rankings=list()#initializing a list to store the yearly rankings
+for(yr in years){#looping through the years
+  yearly_data=subset(game_data,season==yr)#filtering the data for the year of interest
+  teams=unique(c(yearly_data$Visiting_Team,yearly_data$Home_Team))#getting the teams
+  num_teams=length(teams)#storing 30 teams
+  tindex=setNames(1:num_teams,teams)#indexing the teams
+  tpmatrix=matrix(0,nrow=num_teams,ncol=num_teams,dimnames=list(teams,teams))#initializing the transition probability matrix
+  for(i in 1:nrow(yearly_data)){#looping through the games
+    visiting=tindex[yearly_data$Visiting_Team[i]]#establishing the visiting team of interest
+    home=tindex[yearly_data$Home_Team[i]]#establishing the home team of interest
+    vs=yearly_data$Visiting_Score[i]#getting the visiting team's score
+    hs=yearly_data$Home_Score[i]#getting the home team's score
+    if(vs<hs){#establishing the case where the home team won
+      tpmatrix[visiting,home]=tpmatrix[visiting,home]+1#adding this case to the matrix
+    }else if(hs<vs){#establishing the case where the visiting team won
+      tpmatrix[home,visiting]=tpmatrix[home,visiting]+1#adding this case to the matrix
+    }#closing the if else statement
+  }#closing the for loop
+  mtmatrix=tpmatrix/rowSums(tpmatrix)#normalizing the matrix
+  mtmatrix[is.nan(mtmatrix)]=0#setting the NAs to 0
+  b=rep(1/num_teams,num_teams)#finding the steady-state rankings
+  for(i in 1:10000){#looping through the iterations
+    b=b%*%mtmatrix#multiplying the probability distribution vector by the matrix
+  }#closing the loop
+  rankings=setNames(as.numeric(b),rownames(mtmatrix))#getting the probabilities
+  rankings=sort(rankings,decreasing=T)#sorting the rankings
+  rankings=data.frame(Rank=1:num_teams,Team=names(rankings),Probability=rankings)#assigning ranks 1 through 30
+  yearly_rankings[[as.character(yr)]]=rankings#adding the years rankings to the list
+}#closing the loop
+yearly_rankings#printing the list
+```
+
+```{r}
+#Visualizing The Rankings
+library(tidyverse)#loading tidyverse
+library(knitr)#loading knitr
+rankings_df=bind_rows(lapply(names(yearly_rankings),function(yr){#converting my list of yearly rankings into a single data frame
+  yearly_rankings[[yr]]%>%#getting yearly_rankings list
+    mutate(Year=as.numeric(yr))#creating the value Year
+}),.id="Season")#Year comes from Season
+rankings_wide=rankings_df%>%#making the data wide
+  select(Team,Year,Rank)%>%#getting the necessary information
+  pivot_wider(names_from=Year,values_from=Rank)#adding years to the x axis
+kable(rankings_wide,format="markdown",caption="Team Rankings By Year")#printing a table
+```
+
